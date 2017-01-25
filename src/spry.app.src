@@ -1,10 +1,12 @@
 {application, spry,
- [{description, "An OTP library"},
+ [{description, "An OTP application"},
   {vsn, "0.1.0"},
   {registered, []},
+  {mod, { spry_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    lager
    ]},
   {env,[]},
   {modules, []},

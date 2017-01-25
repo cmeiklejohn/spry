@@ -1,7 +1,7 @@
 spry
 =====
 
-An OTP library
+An OTP application
 
 Build
 -----
