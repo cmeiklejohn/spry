@@ -66,11 +66,14 @@ handle_call({declare, ObjectId, Origin}, _From, State) ->
     {reply, ok, State};
 
 handle_call({reduce, ObjectId,
-             [{latency, Milliseconds}]}, _From, State) ->
+             [{latency, Milliseconds}]}, From, State) ->
     lager:info("Reducing ~p with latency bound of ~p ms",
                [ObjectId, Milliseconds]),
-    [{_, #object{value=Value}}] = ets:lookup(?MODULE, ObjectId),
-    {reply, {ok, Value}, State};
+
+    %% Set timer to retrieve the value from the other node.
+    timer:send_after(Milliseconds, {reduce_timeout, From, ObjectId}),
+
+    {noreply, State};
 
 handle_call(Msg, _From, State) ->
     _ = lager:warning("Unhandled messages: ~p", [Msg]),
@@ -82,6 +85,14 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 %% @private
+handle_info({reduce_timeout, From, ObjectId}, State) ->
+    %% Retrieve current value.
+    [{_, #object{value=Value}}] = ets:lookup(?MODULE, ObjectId),
+
+    %% Respond back to the waiting clients.
+    gen_server:reply(From, {ok, Value}),
+
+    {noreply, State};
 handle_info(Msg, State) ->
     _ = lager:warning("Unhandled messages: ~p", [Msg]),
     {noreply, State}.
