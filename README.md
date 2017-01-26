@@ -1,4 +1,4 @@
-spry
+Spry
 =====
 
 An OTP application
