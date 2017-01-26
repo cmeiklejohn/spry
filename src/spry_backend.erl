@@ -71,7 +71,8 @@ handle_call({reduce, ObjectId,
                [ObjectId, Milliseconds]),
 
     %% Set timer to retrieve the value from the other node.
-    timer:send_after(Milliseconds, {reduce_timeout, From, ObjectId}),
+    timer:send_after(Milliseconds,
+                     {reduce_timeout, From, Milliseconds, ObjectId}),
 
     {noreply, State};
 
@@ -85,7 +86,10 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 %% @private
-handle_info({reduce_timeout, From, ObjectId}, State) ->
+handle_info({reduce_timeout, From, Milliseconds, ObjectId}, State) ->
+    lager:info("Latency timeout: ~p for ~p",
+               [Milliseconds, ObjectId]),
+
     %% Retrieve current value.
     [{_, #object{value=Value}}] = ets:lookup(?MODULE, ObjectId),
 
