@@ -31,7 +31,9 @@ end_per_testcase(_Name, _Config) ->
 
 basic(_Config) ->
     Node = node(),
+    Value = <<"this is a value">>,
     ObjectId = <<"123">>,
     Constraints = [{latency, 100}],
     ok = spry_backend:declare(ObjectId, Node),
-    {ok, undefined} = spry_backend:reduce(ObjectId, Constraints).
+    ok = spry_backend:bind(ObjectId, Value),
+    {ok, Value} = spry_backend:reduce(ObjectId, Constraints).

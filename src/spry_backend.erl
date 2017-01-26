@@ -4,6 +4,7 @@
 -behaviour(gen_server).
 
 -export([start_link/0,
+         bind/2,
          declare/2,
          reduce/2]).
 
@@ -19,6 +20,7 @@
 -type origin() :: node().
 -type constraint() :: {latency, non_neg_integer()}.
 -type constraints() :: [constraint()].
+-type value() :: binary().
 
 %% State record
 -record(state, {}).
@@ -42,6 +44,13 @@ declare(ObjectId, Origin) ->
                     {declare, ObjectId, Origin},
                     infinity).
 
+%% @doc Bind a new value.
+-spec bind(object_id(), value()) -> ok.
+bind(ObjectId, Value) ->
+    gen_server:call(?MODULE,
+                    {bind, ObjectId, Value},
+                    infinity).
+
 %% @doc Reduce a value from reference to value.
 -spec reduce(object_id(), constraints()) -> {ok, term()}.
 reduce(ObjectId, Constraint) ->
@@ -59,8 +68,22 @@ init([]) ->
     {ok, #state{}}.
 
 %% @private
+handle_call({bind, ObjectId, Value}, _From, State) ->
+    lager:info("Binding ~p to object ~p", [Value, ObjectId]),
+
+    %% Set origin to node receiving request.
+    Origin = node(),
+
+    %% Insert value,a nd redefine origin.
+    true = ets:insert(?MODULE, {ObjectId,
+                                #object{origin=Origin, value=Value}}),
+
+    {reply, ok, State};
+
 handle_call({declare, ObjectId, Origin}, _From, State) ->
     lager:info("Declaring ~p with origin ~p", [ObjectId, Origin]),
+
+    %% Insert object.
     true = ets:insert(?MODULE, {ObjectId,
                                 #object{origin=Origin}}),
     {reply, ok, State};
