@@ -4,7 +4,8 @@
 -behaviour(gen_server).
 
 -export([start_link/0,
-         declare/2]).
+         declare/2,
+         reduce/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -16,9 +17,14 @@
 
 -type object_id() :: binary().
 -type origin() :: node().
+-type constraint() :: {latency, non_neg_integer()}.
+-type constraints() :: [constraint()].
 
 %% State record
 -record(state, {}).
+
+%% Object record.
+-record(object, {origin, value}).
 
 %%%===================================================================
 %%% API
@@ -36,6 +42,13 @@ declare(ObjectId, Origin) ->
                     {declare, ObjectId, Origin},
                     infinity).
 
+%% @doc Reduce a value from reference to value.
+-spec reduce(object_id(), constraints()) -> {ok, term()}.
+reduce(ObjectId, Constraint) ->
+    gen_server:call(?MODULE,
+                    {reduce, ObjectId, Constraint},
+                    infinity).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -48,8 +61,17 @@ init([]) ->
 %% @private
 handle_call({declare, ObjectId, Origin}, _From, State) ->
     lager:info("Declaring ~p with origin ~p", [ObjectId, Origin]),
-    true = ets:insert(?MODULE, {ObjectId, Origin}),
+    true = ets:insert(?MODULE, {ObjectId,
+                                #object{origin=Origin}}),
     {reply, ok, State};
+
+handle_call({reduce, ObjectId,
+             [{latency, Milliseconds}]}, _From, State) ->
+    lager:info("Reducing ~p with latency bound of ~p ms",
+               [ObjectId, Milliseconds]),
+    [{_, #object{value=Value}}] = ets:lookup(?MODULE, ObjectId),
+    {reply, {ok, Value}, State};
+
 handle_call(Msg, _From, State) ->
     _ = lager:warning("Unhandled messages: ~p", [Msg]),
     {reply, ok, State}.
